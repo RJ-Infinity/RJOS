@@ -1,2 +1,6 @@
 build/
+welcome
+.vscode/
 dist/
+dist/x86_64/
+src/impl/kernel/main.c.bak
