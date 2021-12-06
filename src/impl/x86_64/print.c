@@ -1,13 +1,9 @@
 #include "print.h"
-
-const static size_t NUM_COLS = 80;
-const static size_t NUM_ROWS = 25;
-const static size_t TAB_SIZE = 4;
+#include "string.h"
 
 struct Char {
 	uint8_t character;
 	uint8_t colour;
-
 };
 
 
@@ -17,7 +13,7 @@ size_t col = 0;
 size_t row = 0;
 uint8_t colour = PRINT_COLOUR_WHITE | (PRINT_COLOUR_BLACK << 4);
 
-void clear_row(size_t row){
+void print_clear_row(size_t row){
 	struct Char empty = (struct Char) {
 		character: ' ',
 		colour: colour
@@ -39,41 +35,62 @@ void print_newline(){
 			buffer[(NUM_COLS*(row-1))+col] = character;
 		}
 	}
-	clear_row(NUM_ROWS-1);
+	print_clear_row(NUM_ROWS-1);
 }
 
 void print_clear(){
 	for(size_t i = 0; i < NUM_ROWS; i++){
-		clear_row(i);
+		print_clear_row(i);
 
 	}
 }
 
 void print_char(char character){
-	if (character == '\n'){
-		print_newline();
-		return;
-	}
 	if(col > NUM_COLS){
 		print_newline();
 	}
-	if (character == '\t'){
-		for(size_t i = (col%TAB_SIZE); i < 4; i++){
-			print_char(' ');
+	switch (character)
+	{
+		case '\n':{
+			print_newline();
+			return;
 		}
-		return;
+		case '\t':{
+			for(size_t i = (col%TAB_SIZE); i < 4; i++){
+				print_char(' ');
+			}
+			return;
+		}
+		case '\r':{
+			col = 0;
+			break
+		}
+		case '\b':{
+			if (col == 0){
+				return;
+			}
+			col--;
+			buffer[(NUM_COLS*row)+col] = (struct Char){
+				character: ' ',
+				colour:colour,
+			};
+			break;
+		}
+		default:{
+			buffer[(NUM_COLS*row)+col] = (struct Char){
+				character: (uint8_t) character,
+				colour:colour,
+			};
+			col++;
+			break;
+		}
 	}
-
-	buffer[(NUM_COLS*row)+col] = (struct Char){
-		character: (uint8_t) character,
-		colour:colour,
-	};
-	col++;
+	updateCursor(col,row);
 }
 
-void print_str(char* string){
+void print_str(string str){
 	for (size_t i = 0; 1; i++){
-		char character = (uint8_t)string[i];
+		char character = (uint8_t)str[i];
 		if (character == '\0'){
 			return;
 		}
@@ -97,4 +114,16 @@ void print_int_base(int i, int base){
 }
 void print_int(int i){
 	print_int_base(i,10);
+}
+void set_print_location(size_t x,size_t y){
+	col = x;
+	row = y;
+}
+void updateCursor(size_t r, size_t c){
+	size_t cursorPos = (NUM_COLS*r)+c;
+
+	outportb(0x3D4, 14); // CRT Control Register: Select Cursor Location
+	outportb(0x3D5, cursorPos >> 8); // Send the high byte across the bus
+	outportb(0x3D4, 15); // CRT Control Register: Select Send Low byte
+	outportb(0x3D5, cursorPos); // Send the Low byte of the cursor location
 }
